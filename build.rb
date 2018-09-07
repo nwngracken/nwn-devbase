@@ -214,6 +214,7 @@ if VERBOSE
   MODULE_FILENAME: #{MODULE_FILENAME}
   MODULE_FILE_EXT: #{MODULE_FILE_EXT}
   MODULE_FILE: #{MODULE_FILE}
+  SERVERVAULT_DIR: #{SERVERVAULT_DIR}
   CACHE_DIR: #{CACHE_DIR}
   TMP_CACHE_DIR: #{TMP_CACHE_DIR}
   GFF_CACHE_DIR: #{GFF_CACHE_DIR}
@@ -240,6 +241,7 @@ end
 # Initialize environment
 def init_directories()
   FileUtils.mkdir_p(MODULE_DIR)
+  FileUtils.mkdir_p(SERVERVAULT_DIR)
   FileUtils.mkdir_p(TMP_CACHE_DIR)
   FileUtils.mkdir_p(GFF_CACHE_DIR)
 end
@@ -275,6 +277,67 @@ def extract_module(modfile)
       abort "[ERROR] Something went wrong while extracting #{modfile}.\n[ERROR] Aborting."
     end
   end
+end
+
+# Extract the given .bic files, or exit early if the files do not exist.
+# To avoid overwriting modified source files the module time stamp is
+# compared with SOURCES time stamps, and if there are positives the user
+# will be prompted to proceed with a list of all source files newer than
+# their respective .bic files.
+# +modfile+:: module file to extract
+def extract_servervault(servervault_dir, servervault_src_dir)
+
+  puts "[INFO] Inside extract_servervault()."
+  unless File.exist?(servervault_dir)
+    abort "[ERROR] No folder \"#{servervault_dir}/\" found.\n[ERROR] Aborting."
+  end
+
+  unless File.directory?(servervault_dir)
+    abort "[ERROR] \"#{servervault_dir}/\" is a file, not a folder.\n[ERROR] Aborting."
+  end
+
+  bic_dir_list = Dir.foreach(servervault_dir).select { |dir|
+    File.directory?(servervault_dir.join(dir))
+  }
+
+  bic_files = []
+  modified_src_files = []
+  bic_dir_list.each { |bic_dir|
+    Dir.glob(
+      servervault_dir.join(bic_dir).join("*.bic")
+    ).select { |bic_file|
+      File.file?(bic_file)
+    }.each { |bic_file|
+      bic_files.push(bic_file)
+      src_file = servervault_src_dir.join(
+        bic_dir.force_encoding('UTF-8')
+      ).join(
+        # Protect from invalid UTF characters;  Got this from
+        # https://robots.thoughtbot.com/fight-back-utf-8-invalid-byte-sequences
+        File.basename(bic_file).encode('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '')
+      )
+      if (
+        File.exist?(src_file) and
+        File.mtime(src_file) > File.mtime(bic_file)
+      ) then
+        modified_src_files.push(src_file)
+      end
+    }
+  }
+
+  unless modified_src_files.empty?
+    puts modified_src_files
+    input = ask "The above #{modified_src_files.size} files have newer timestamps than their respective .bic files. \nAre you sure you wish to overwrite? [y/N]"
+    Kernel.exit(1) unless input.downcase == "y"
+  end
+
+  #bic_files.each { |bic_file|
+  #  puts "[INFO] Extracting #{bic_file}."
+  #}
+
+  #remove_deleted_files(GFF_CACHE_DIR, SOURCES.sub(/\.yml$/, ''))
+  system "rake", "--rakefile", EXTRACT_SERVERVAULT_RAKE.to_s, "SERVERVAULT_DIR=#{servervault_dir}", "SRC_DIR=#{servervault_src_dir}", "SCRIPTS_DIR=#{SCRIPTS_DIR}"
+  #update_files_based_on_timestamp(FileList[to_forward_slash GFF_CACHE_DIR.join("*.nss")], NSS_DIR)
 end
 
 # Pack the given .mod file.
@@ -415,6 +478,10 @@ def init_nwnproject()
     gitignore=WORKING_DIR.join(".gitignore")
     File.write(gitignore, "server\n", mode: 'a') unless qgrep("^server$", gitignore)
   end
+  create_moduledir = ask "Create default servervault directory (#{SERVERVAULT_DIR})? [Y/n]:"
+  if create_moduledir.empty? || create_moduledir.downcase[0] == "y"
+    FileUtils.mkdir_p(SERVERVAULT_DIR)
+  end
 end
 
 # Quiet grep that returns a boolean indicating if pattern matches anywhere in file. 
@@ -491,6 +558,8 @@ when "install-as"
   install_devbase ARGV.shift 
 when "extract"
   extract_all
+when "extract_servervault"
+  extract_servervault(SERVERVAULT_DIR, SERVERVAULT_SRC_DIR)
 when "pack"
   pack_all
 when "clean"

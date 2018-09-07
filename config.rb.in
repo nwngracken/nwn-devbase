@@ -15,12 +15,15 @@ MODULE_DIR ||= HOME_DIR.join("modules")
 MODULE_FILENAME ||= "module"
 MODULE_FILE_EXT ||= ".mod"
 MODULE_FILE ||= find_modfile
+SERVERVAULT_DIR ||= HOME_DIR.join("servervault")
 CACHE_DIR ||= NWNPROJECT.join("cache")
 TMP_CACHE_DIR ||= CACHE_DIR.join("tmp")
 GFF_CACHE_DIR ||= CACHE_DIR.join("gff")
 SRC_DIR ||= PROJECT_ROOT.join("src")
+SERVERVAULT_SRC_DIR ||= PROJECT_ROOT.join("servervault_src")
 RESMAN_DIR ||= PROJECT_ROOT.join("resman")
 EXTRACT_RAKE ||=  file_exists(PROJECT_ROOT.join("extract.rake")) || file_exists(EXECUTION_DIR.join("extract.rake"))
+EXTRACT_SERVERVAULT_RAKE ||=  file_exists(PROJECT_ROOT.join("extract_servervault.rake")) || file_exists(EXECUTION_DIR.join("extract_servervault.rake"))
 PACK_RAKE ||=  file_exists(PROJECT_ROOT.join("pack.rake")) || file_exists(EXECUTION_DIR.join("pack.rake"))
 SYMLINK_RAKE ||=  file_exists(PROJECT_ROOT.join("symlink.rake")) || file_exists(EXECUTION_DIR.join("symlink.rake"))
 
